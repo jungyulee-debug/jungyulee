@@ -2,40 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import { Check, Pencil, Plus, Trash2, X } from 'lucide-react'
 import ideaLoopGif from './assets/idea-loop.gif'
 import ideaStillGif from './assets/idea-still.gif'
+import { createIdea, deleteIdea, getIdeas, updateIdea } from './ideasApi'
 import './App.css'
 
-const STORAGE_KEY = 'idea-card.ideas'
 const MAX_LENGTH = 280
 const GIF_PLAY_TIME = 1600
-
-function makeIdea(content) {
-  return {
-    id: globalThis.crypto?.randomUUID?.() ?? String(Date.now()),
-    content,
-    updatedAt: new Date().toISOString(),
-  }
-}
-
-function loadIdeas() {
-  try {
-    const savedIdeas = localStorage.getItem(STORAGE_KEY)
-    if (!savedIdeas) return []
-
-    const parsedIdeas = JSON.parse(savedIdeas)
-    if (!Array.isArray(parsedIdeas)) return []
-
-    return parsedIdeas
-      .filter((idea) => idea?.id && typeof idea.content === 'string')
-      .map((idea) => ({
-        id: String(idea.id),
-        content: idea.content,
-        updatedAt:
-          typeof idea.updatedAt === 'string' ? idea.updatedAt : new Date().toISOString(),
-      }))
-  } catch {
-    return []
-  }
-}
 
 function formatDate(value) {
   const date = new Date(value)
@@ -54,16 +25,42 @@ function formatDate(value) {
 
 function App() {
   const [draft, setDraft] = useState('')
-  const [ideas, setIdeas] = useState(loadIdeas)
+  const [ideas, setIdeas] = useState([])
   const [editingId, setEditingId] = useState(null)
   const [editingText, setEditingText] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
+  const [errorMessage, setErrorMessage] = useState('')
   const [isGifPlaying, setIsGifPlaying] = useState(false)
   const [gifRun, setGifRun] = useState(0)
   const gifTimerRef = useRef(null)
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(ideas))
-  }, [ideas])
+    let isActive = true
+
+    async function loadBoard() {
+      try {
+        setErrorMessage('')
+        const loadedIdeas = await getIdeas()
+        if (isActive) {
+          setIdeas(loadedIdeas)
+        }
+      } catch {
+        if (isActive) {
+          setErrorMessage('아이디어를 불러오지 못했습니다.')
+        }
+      } finally {
+        if (isActive) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    loadBoard()
+
+    return () => {
+      isActive = false
+    }
+  }, [])
 
   useEffect(() => {
     return () => {
@@ -90,14 +87,20 @@ function App() {
     }, GIF_PLAY_TIME)
   }
 
-  function handleCreate(event) {
+  async function handleCreate(event) {
     event.preventDefault()
 
     if (!draftText) return
 
-    setIdeas((currentIdeas) => [makeIdea(draftText), ...currentIdeas])
-    setDraft('')
-    playBoardGif()
+    try {
+      setErrorMessage('')
+      const newIdea = await createIdea(draftText)
+      setIdeas((currentIdeas) => [newIdea, ...currentIdeas])
+      setDraft('')
+      playBoardGif()
+    } catch {
+      setErrorMessage('아이디어를 저장하지 못했습니다.')
+    }
   }
 
   function startEditing(idea) {
@@ -110,28 +113,32 @@ function App() {
     setEditingText('')
   }
 
-  function saveEditing(id) {
+  async function saveEditing(id) {
     if (!editingValue) return
 
-    setIdeas((currentIdeas) =>
-      currentIdeas.map((idea) =>
-        idea.id === id
-          ? {
-              ...idea,
-              content: editingValue,
-              updatedAt: new Date().toISOString(),
-            }
-          : idea,
-      ),
-    )
-    cancelEditing()
+    try {
+      setErrorMessage('')
+      const editedIdea = await updateIdea(id, editingValue)
+      setIdeas((currentIdeas) =>
+        currentIdeas.map((idea) => (idea.id === id ? editedIdea : idea)),
+      )
+      cancelEditing()
+    } catch {
+      setErrorMessage('아이디어를 수정하지 못했습니다.')
+    }
   }
 
-  function deleteIdea(id) {
-    setIdeas((currentIdeas) => currentIdeas.filter((idea) => idea.id !== id))
+  async function handleDeleteIdea(id) {
+    try {
+      setErrorMessage('')
+      await deleteIdea(id)
+      setIdeas((currentIdeas) => currentIdeas.filter((idea) => idea.id !== id))
 
-    if (editingId === id) {
-      cancelEditing()
+      if (editingId === id) {
+        cancelEditing()
+      }
+    } catch {
+      setErrorMessage('아이디어를 삭제하지 못했습니다.')
     }
   }
 
@@ -154,6 +161,12 @@ function App() {
           {ideas.length}
         </div>
       </header>
+
+      {errorMessage ? (
+        <p className="status-message" role="alert">
+          {errorMessage}
+        </p>
+      ) : null}
 
       <section className="composer" aria-label="새 아이디어 입력">
         <form onSubmit={handleCreate}>
@@ -178,7 +191,12 @@ function App() {
       </section>
 
       <section className="idea-board" aria-live="polite">
-        {ideas.length === 0 ? (
+        {isLoading ? (
+          <div className="empty-state">
+            <h2>아이디어를 불러오는 중이에요</h2>
+            <p>잠시만 기다려주세요.</p>
+          </div>
+        ) : ideas.length === 0 ? (
           <div className="empty-state">
             <h2>아직 저장된 아이디어가 없어요</h2>
             <p>첫 카드를 추가하면 이곳에 쌓입니다.</p>
@@ -230,7 +248,7 @@ function App() {
                           type="button"
                           title="아이디어 삭제"
                           aria-label="아이디어 삭제"
-                          onClick={() => deleteIdea(idea.id)}
+                          onClick={() => handleDeleteIdea(idea.id)}
                         >
                           <Trash2 size={17} strokeWidth={2.3} aria-hidden="true" />
                         </button>

@@ -49,6 +49,17 @@
   box-shadow: var(--shadow-sm);
 }
 
+.status-message {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--danger-bg);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--danger);
+  font-size: 14px;
+  font-weight: 700;
+}
+
 .composer {
   margin-bottom: 24px;
   padding: 20px;
