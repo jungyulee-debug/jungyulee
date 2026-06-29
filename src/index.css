@@ -7,7 +7,16 @@
   --danger-bg: #fae9eb;
   --focus-ring: rgba(20, 120, 108, 0.2);
   --input-bg: #fbfcfd;
-  --page-bg: #f4f7f9;
+  --page-bg: linear-gradient(
+    135deg,
+    #ff6b6b 0%,
+    #ffd166 18%,
+    #7bd88f 36%,
+    #4ecdc4 54%,
+    #5b8def 72%,
+    #b967ff 88%,
+    #ff8cc6 100%
+  );
   --shadow-sm: 0 12px 28px rgba(32, 45, 58, 0.08);
   --success: #1d7f4f;
   --success-bg: #e5f4ec;
@@ -39,6 +48,8 @@ body {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
+  background: var(--page-bg);
+  background-attachment: fixed;
 }
 
 button,
@@ -71,7 +82,16 @@ h1 {
     --danger-bg: #3b2027;
     --focus-ring: rgba(57, 198, 179, 0.24);
     --input-bg: #111820;
-    --page-bg: #0d1218;
+    --page-bg: linear-gradient(
+      135deg,
+      #6f1d1b 0%,
+      #7a5c00 18%,
+      #195c32 36%,
+      #0f5d66 54%,
+      #243c8f 72%,
+      #5a248f 88%,
+      #7f2458 100%
+    );
     --shadow-sm: 0 14px 30px rgba(0, 0, 0, 0.22);
     --success: #84dfa4;
     --success-bg: #183425;
